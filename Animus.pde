@@ -25,9 +25,10 @@ ControlP5 cp5;
 VolumeBar volumeBar;
 CheckBox[] buttons;
 Textlabel[] buttonLabels;
-CheckBox highlight, expand, revolve, particles, front, rear, top, autoPan, viewing, blur, invert, ring, fluid, droplet;
+CheckBox highlight, expand, revolve, particles, front, rear, top, autoPan, viewing, blur, invert, ring, fluid, droplet, timer;
 Textlabel interfaceLabel;
 boolean load;
+boolean timerEnabled = false;
 float sliderVal;
 PImage logo;
 PFont font;
@@ -73,8 +74,8 @@ void setup() {
     //     float dx = (width / 2 - w) + (2 * dist * i + (dist / 2));
     //     dots[i] = new PageDot(dx, height - dist * 2, dist / 2, visualizers[i].name);
     // }
-    buttons = new CheckBox[14];
-    buttonLabels = new Textlabel[14];
+    buttons = new CheckBox[15];
+    buttonLabels = new Textlabel[15];
     cp5 = new ControlP5(this);
     guiSetup(cFont);
     visualizers[select].setup();
@@ -215,6 +216,7 @@ void draw() {
         }
     }
 server.sendScreen();
+timerTick();
 }
 
 // void mousePressed() {
@@ -261,6 +263,7 @@ void updateGui() {
     buttons[11].setArrayValue(select == 0 ? on : off);
     buttons[12].setArrayValue(select == 1 ? on : off);
     buttons[13].setArrayValue(select == 2 ? on : off);
+    buttons[14].setArrayValue(timerEnabled ? on : off);
 
     // image(loadImage("Button.png"), mouseX, mouseY);
     // if(mousePressed){
@@ -304,6 +307,8 @@ void guiSetup(ControlFont font){
     buttonLabels[12] = cp5.addTextlabel("Sensitivity").setText("Mic Sensitivity");
     buttons[13] = droplet = cp5.addCheckBox("droplet").addItem("Droplet", 0);
     buttonLabels[13] = cp5.addTextlabel("name").setText(visualizers[select].name);
+    buttons[14] = timer = cp5.addCheckBox("timer").addItem("Timer", 0);
+    buttonLabels[14] = cp5.addTextlabel("timerT").setText("Timer [t]");
     
     float startHeight = TEXT_OFFSET + 92;
     PImage normal = loadImage("Button.png");
@@ -335,11 +340,13 @@ void guiSetup(ControlFont font){
     buttons[11].setPosition(width - 180, TEXT_OFFSET + 23); //ring
     buttons[12].setPosition(width - 147, TEXT_OFFSET + 23); //fluid
     buttons[13].setPosition(width - 114, TEXT_OFFSET + 23); //droplet
+    buttons[14].setPosition(width - 212, startHeight + (1 + 11) * 28); //timer
     
     buttonLabels[8].setPosition(width - (180 - 28), startHeight + 257);
     buttonLabels[11].setPosition(width - (212 - 58), startHeight - 20);
     buttonLabels[12].setPosition(width - (212 - 12), startHeight + 26);
     buttonLabels[13].setPosition(displayWidth / 2 - 25, TEXT_OFFSET);
+    buttonLabels[14].setPosition(width - (212 - 28), int(startHeight + 5 + (1 + 11) * 28));
     setGuiColors();
 }
 
@@ -358,6 +365,76 @@ void setGuiColors() {
     // println("orig: " + (255 - visualizers[select].contrast) + ", interfaceT: " + interfaceT);
     interfaceLabel.setColor(textColor);
     volumeBar.invert = visualizers[select].contrast == 255 ? true: false;
+}
+
+int savedTime;
+int timerLength = 1000 * 60 * 6;
+// String keys[] = ['']
+// int selectChangeTime = 10000;
+int modulateTime = 15000;
+int savedModulateTime;
+void toggleTimer() {
+    timerEnabled = !timerEnabled;
+    if (timerEnabled){
+        savedTime = millis();
+        savedModulateTime = millis();
+    }
+    // println(timerEnabled);
+}
+
+void setRandomDirection() {
+        int randomize = int(random(5));
+        switch (randomize) {
+            case 0:
+                visualizers[select].fPressed();
+                break;
+            case 1:
+                visualizers[select].rPressed();
+                break;
+            case 2:
+                visualizers[select].tPressed();
+                break;
+            case 3: 
+                visualizers[select].aPressed();
+        }
+}
+
+void setRandomEffect() {
+        int randomize = int(random(10));
+        switch (randomize) {
+            case 0:
+                visualizers[select].expand();
+                break;
+            case 1:
+                visualizers[select].revolve();
+                break;
+            case 2:
+                visualizers[select].particles();
+                break;
+            case 3:
+                visualizers[select].highlight();
+                break;
+        }
+}
+void timerTick() {
+    if (timerEnabled){
+        // visualizers[select].aPressed();
+        int timeElapsed = millis() - savedTime;
+        int timeElapsedMod = millis() - savedModulateTime;
+        // println(timeElapsed);
+        if (timeElapsedMod > modulateTime) {
+            setRandomDirection();
+            setRandomEffect();
+            savedModulateTime = millis();
+        }
+        if (timeElapsed > timerLength) {
+            savedTime = millis();
+            // println("Changing Viz");
+            select++;
+            select %= visualizers.length;
+            switchVisualizer();
+        }
+    }
 }
 
 void controlEvent(ControlEvent theEvent) {
@@ -390,6 +467,9 @@ void controlEvent(ControlEvent theEvent) {
         select = 1;
     } else if (theEvent.isFrom(droplet)) {
         select = 2;
+    } else if (theEvent.isFrom(timer)) {
+        toggleTimer();
+        // println("Timer clicked");
     }
 }
 
@@ -479,6 +559,10 @@ void keyPressed() {
             visualizers[select].contrast = 255 - visualizers[select].contrast;
             setGuiColors();
             break;            
+        case 'T':
+            toggleTimer();
+            setGuiColors();
+            break;
         default:
             break;
     }
@@ -491,8 +575,8 @@ void keyPressed() {
             switchVisualizer();
             break;
         case 39: // right arrow key
-            select++;
-            select %= visualizers.length;
+            select = int(random(visualizers.length));
+            // select %= visualizers.length;
             switchVisualizer();
             break;
         default:
