@@ -7,5 +7,5 @@ processing-java --sketch=$CWD --output="$CWD/tmp" --force --present
 # processing-java --sketch=$CWD --output="$CWD/tmp" --force --run
 
 echo "removing temporary bin"
-# rm -rf tmp
+rm -rf tmp
 
